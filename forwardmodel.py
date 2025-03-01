@@ -11,7 +11,10 @@ from simpeg.potential_fields import magnetics
 
 from pathlib import Path
 
-def run_forward_model(topo_file, inclination, declination, strength, background_susceptibility, sphere_susceptibility, noise_sigma):
+def run_forward_model(
+        topo_file, inclination, declination, strength, 
+        background_susceptibility, sphere_susceptibility, 
+        noise_sigma):
     xyz_topo = np.loadtxt(topo_file)
     
     x_topo = xyz_topo[:,0]
@@ -26,11 +29,7 @@ def run_forward_model(topo_file, inclination, declination, strength, background_
     z = fun_interp(np.c_[x, y]) + 10
     receiver_locations = np.c_[x, y, z]
     
-    components = ["tmi"]
-    
-    receiver_list = magnetics.receivers.Point(receiver_locations, components=components)
-    
-    receiver_list = [receiver_list]
+    receiver_list = [magnetics.receivers.Point(receiver_locations, components=["tmi"])]
     
     source_field = magnetics.sources.UniformBackgroundField(
         receiver_list=receiver_list,
@@ -38,7 +37,6 @@ def run_forward_model(topo_file, inclination, declination, strength, background_
         inclination=inclination,
         declination=declination,
     )
-    
     survey = magnetics.survey.Survey(source_field)
     
     dh = 5.0
@@ -90,9 +88,7 @@ if __name__ == "__main__":
     if not outdir.is_dir():
         outdir.mkdir()
 
-    step = 10
-    inclination = -step
-    while ((inclination := inclination + step) <= 90):
+    for inclination in range(0, 90, 10):
         args["inclination"] = inclination
         fanom = Path(f"anom_i{args['inclination']}_d{args['declination']}.txt")
         model = run_forward_model(**args)
