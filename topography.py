@@ -4,7 +4,7 @@ import numpy as np
 from pathlib import Path
 
 outdir = Path("outputs")
-fout = Path("topo.txt")
+fout   = Path("topo.txt")
 
 [x_topo, y_topo] = np.meshgrid(np.linspace(-200, 200, 41), np.linspace(-200,
  200, 41))
