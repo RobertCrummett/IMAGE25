@@ -66,7 +66,7 @@ def create_simulation_params(xyz_topo):
         )
 
 def create_model(xyz_topo, params):
-    active_cells = simulation_params["active_cells"]
+    active_cells = params["active_cells"]
     nC = int(active_cells.sum())
     model = params["background"] * np.ones(nC)
 
