@@ -13,7 +13,6 @@ from pathlib import Path
 from topography import load_topo
 
 FORWARD_SEED = 12345
-np.random.seed(FORWARD_SEED)
 
 outdir = Path("outputs")
 
@@ -66,46 +65,47 @@ def create_simulation_params(xyz_topo):
             engine="choclo",
         )
 
-def create_model(xyz_topo, susceptibility, simulation_params):
+def create_model(xyz_topo, params):
     active_cells = simulation_params["active_cells"]
     nC = int(active_cells.sum())
-    model = susceptibility["background"] * np.ones(nC)
+    model = params["background"] * np.ones(nC)
 
-    mesh = simulation_params["mesh"]
+    mesh = params["mesh"]
     ind_sphere = model_builder.get_indices_sphere(
             np.r_[0.0, 0.0, -45.0], 15.0, mesh.cell_centers
         )
 
     ind_sphere = ind_sphere[active_cells]
-    model[ind_sphere] = susceptibility["sphere"]
+    model[ind_sphere] = params["sphere"]
 
     return model
 
-# this is multiplicative noise, so `add` is deceptive
-# `add` here means insert, or put into, not addition the math op
+"""
+this is multiplicative noise, so `add` is deceptive
+`add` here means insert, or put into, not addition the math op
+"""
 def add_noise_to_model(model, sigma):
-    np.random.seed(FORWARD_SEED)
     noise = np.random.lognormal(mean=0, sigma=sigma, size=model.shape)
     return model * noise
 
-def survey_the_model(model, survey, simulation_params):
+def survey_the_model(model, survey, params):
     simulation = magnetics.simulation.Simulation3DIntegral(
         survey=survey,
-        **simulation_params.maps[0],
+        mesh=params["mesh"],
+        model_type=params["model_type"],
+        chiMap=params["chiMap"],
+        active_cells=params["active_cells"],
+        store_sensitivities=params["store_sensitivities"],
+        engine=params["engine"],
     )
     return simulation.dpred(model)
 
-def write_survey_results(receivers, survey_results, background_field):
-    create_anom_path = lambda i, d: outdir / Path(f"anom_i{i}_d{d}.txt")
+def write_survey_results(receivers, survey_results, params):
+    inclination = params["inclination"]
+    declination = params["declination"]
+    fsurvey = outdir / Path(f"anom_i{inclination}_d{declination}.txt")
 
-    inclination = background_field["inclination"]
-    declination = background_field["declination"]
-
-    fsurvey = create_anom_path(inclination, declination)
-
-    survey_with_xyz = np.column_stack(
-            (receivers.locations, survey_results)
-        )
+    survey_with_xyz = np.column_stack((receivers.locations, survey_results))
 
     try:
         fsurvey.parent.mkdir()
@@ -115,24 +115,28 @@ def write_survey_results(receivers, survey_results, background_field):
         np.savetxt(fsurvey, survey_with_xyz, fmt="%.4e", delimiter=" ")
 
 if __name__ == "__main__":
-    background_field = dict(
-            strength = 50000, inclination = 0, declination = 0
-        )
-    susceptibility = dict(
-            background = 1e-4, sphere = 1e-2
-        )
-    
+    np.random.seed(FORWARD_SEED)
+
     xyz_topo = load_topo()
     receivers = create_tmi_receivers(xyz_topo)
 
-    survey = create_survey(receivers, background_field)
+    background_field = dict(strength = 50000, inclination = 0, declination = 0)
+    susceptibility = dict(background = 1e-4, sphere = 1e-2)
     simulation_params = create_simulation_params(xyz_topo)
-
+    
     params = ChainMap(simulation_params, background_field, susceptibility)
 
-    model = create_model(xyz_topo, susceptibility, params)
-    noisy_model = add_noise_to_model(model, sigma = 0.1)
+    for inclination in range(0, 100, 10):
+        params["inclination"] = inclination
 
-    results = survey_the_model(noisy_model, survey, params)
+        survey = create_survey(receivers, params)
 
-    write_survey_results(receivers, results, params)
+        model = create_model(xyz_topo, params)
+        noisy_model = add_noise_to_model(model, sigma = 0.1)
+
+        results = survey_the_model(noisy_model, survey, params)
+
+        write_survey_results(receivers, results, params)
+
+        print(f"Wrote forward model for {inclination} degree inclination")
+
