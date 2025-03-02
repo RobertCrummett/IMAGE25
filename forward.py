@@ -91,9 +91,8 @@ def add_noise_to_model(model, sigma):
 def survey_the_model(model, survey, simulation_params):
     simulation = magnetics.simulation.Simulation3DIntegral(
         survey=survey,
-        **simulation_params,
+        **simulation_params.maps[0],
     )
-    
     return simulation.dpred(model)
 
 def write_survey_results(receivers, survey_results, background_field):
@@ -128,14 +127,12 @@ if __name__ == "__main__":
 
     survey = create_survey(receivers, background_field)
     simulation_params = create_simulation_params(xyz_topo)
-   
-    cm = ChainMap(background_field, simulation_params)
-    print(*cm)
-    # model = create_model(xyz_topo, susceptibility, background_field)
-    # noisy_model = add_noise_to_model(model, sigma = 0.1)
 
-    # survey_results = survey_the_model(
-    #         noisy_model, survey, simulation_params
-    #     )
-    # 
-    # write_survey_results(receivers, survey_results, simulation_params)
+    params = ChainMap(simulation_params, background_field, susceptibility)
+
+    model = create_model(xyz_topo, susceptibility, params)
+    noisy_model = add_noise_to_model(model, sigma = 0.1)
+
+    results = survey_the_model(noisy_model, survey, params)
+
+    write_survey_results(receivers, results, params)
