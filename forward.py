@@ -114,6 +114,14 @@ def write_survey_results(receivers, survey_results, params):
     finally:
         np.savetxt(fsurvey, survey_with_xyz, fmt="%.4e", delimiter=" ")
 
+def load_survey_results(path):
+    survey_results_xyz = np.loadtxt(path)
+
+    receiver_locations = survey_results_xyz[...,:-1]
+    survey_results = survey_results_xyz[...,-1]
+
+    return receiver_locations, survey_results
+
 if __name__ == "__main__":
     np.random.seed(FORWARD_SEED)
 
@@ -123,7 +131,7 @@ if __name__ == "__main__":
     background_field = dict(strength = 50000, inclination = 0, declination = 0)
     susceptibility = dict(background = 1e-4, sphere = 1e-2)
     simulation_params = create_simulation_params(xyz_topo)
-    
+
     params = ChainMap(simulation_params, background_field, susceptibility)
 
     for inclination in range(0, 100, 10):
