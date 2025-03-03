@@ -100,6 +100,34 @@ def survey_the_model(model, survey, params):
     )
     return simulation.dpred(model)
 
+def create_survey_params(**kwargs):
+    xyz_topo = load_topo()
+
+    # Defaults
+    background_field = dict(strength = 50000, inclination = 0, declination = 0)
+    susceptibility = dict(background = 1e-4, sphere = 1e-2)
+    simulation_params = create_simulation_params(xyz_topo)
+    params = ChainMap(simulation_params, background_field, susceptibility)
+
+    for key, value in kwargs.items():
+        params[key] = value
+    return params
+
+
+def create_survey_results(**kwargs):
+    xyz_topo = load_topo()
+    receivers = create_tmi_receivers(xyz_topo)
+
+    params = create_survey_params(**kwargs)
+    survey = create_survey(receivers, params)
+ 
+    model = create_model(xyz_topo, params)
+    noisy_model = add_noise_to_model(model, sigma = 0.1)
+ 
+    results = survey_the_model(noisy_model, survey, params)
+    
+    return receivers, results, params
+
 def write_survey_results(receivers, survey_results, params):
     inclination = params["inclination"]
     declination = params["declination"]
@@ -114,37 +142,26 @@ def write_survey_results(receivers, survey_results, params):
     finally:
         np.savetxt(fsurvey, survey_with_xyz, fmt="%.4e", delimiter=" ")
 
-def load_survey_results(path):
-    survey_results_xyz = np.loadtxt(path)
+def load_survey_results(declination, inclination):
+    params = {}
+    params["inclination"] = inclination
+    params["declination"] = declination
 
-    receiver_locations = survey_results_xyz[...,:-1]
-    survey_results = survey_results_xyz[...,-1]
+    path = Path(f"outputs/anom_i{inclination}_d{declination}.txt")
 
-    return receiver_locations, survey_results
+    if path.exists():
+        survey_results_xyz = np.loadtxt(path)
+        receiver_locations = survey_results_xyz[...,:-1]
+        survey_results = survey_results_xyz[...,-1]
+        return receiver_locations, survey_results, params
+    else:
+        receivers, survey_results, params = create_survey_results(**params)
+        return receivers.locations, survey_results, params
 
 if __name__ == "__main__":
     np.random.seed(FORWARD_SEED)
 
-    xyz_topo = load_topo()
-    receivers = create_tmi_receivers(xyz_topo)
-
-    background_field = dict(strength = 50000, inclination = 0, declination = 0)
-    susceptibility = dict(background = 1e-4, sphere = 1e-2)
-    simulation_params = create_simulation_params(xyz_topo)
-
-    params = ChainMap(simulation_params, background_field, susceptibility)
-
     for inclination in range(0, 100, 10):
-        params["inclination"] = inclination
-
-        survey = create_survey(receivers, params)
-
-        model = create_model(xyz_topo, params)
-        noisy_model = add_noise_to_model(model, sigma = 0.1)
-
-        results = survey_the_model(noisy_model, survey, params)
-
-        write_survey_results(receivers, results, params)
-
-        print(f"Wrote forward model for {inclination} degree inclination")
-
+        print(f"inclination = {inclination}")
+        results = create_survey_results(inclination = inclination)
+        write_survey_results(*results)

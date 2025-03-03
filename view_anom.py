@@ -1,3 +1,4 @@
+# https://docs.simpeg.xyz/latest/content/tutorials/04-magnetics/plot_2a_magnetics_induced.html#sphx-glr-content-tutorials-04-magnetics-plot-2a-magnetics-induced-py
 import numpy as np
 import matplotlib as mpl
 from matplotlib import pyplot as plt
@@ -8,12 +9,12 @@ from forward import load_survey_results
 
 from pathlib import Path
 
-outdir = Path("outputs")
-fanom = Path("anom_i0_d0.txt")
+declination = 0
+inclination = 90
 
-receiver_locations, survey_results = load_survey_results(outdir / fanom)
+receiver_locations, survey_results, params = \
+        load_survey_results(declination, inclination)
 
-# Plot
 fig = plt.figure(figsize=(6, 5))
 v_max = np.max(np.abs(survey_results))
 
@@ -26,7 +27,7 @@ plot2Ddata(
     clim=(-v_max, v_max),
     contourOpts={"cmap": "bwr"},
 )
-ax1.set_title("TMI Anomaly")
+ax1.set_title(f"TMI: Inclination {inclination}, Declination {declination}")
 ax1.set_xlabel("x (m)")
 ax1.set_ylabel("y (m)")
 

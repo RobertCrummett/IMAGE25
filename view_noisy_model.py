@@ -1,3 +1,4 @@
+# https://docs.simpeg.xyz/latest/content/tutorials/04-magnetics/plot_2a_magnetics_induced.html#sphx-glr-content-tutorials-04-magnetics-plot-2a-magnetics-induced-py
 import numpy as np
 import matplotlib as mpl
 from matplotlib import pyplot as plt
